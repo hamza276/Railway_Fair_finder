@@ -1,0 +1,50 @@
+[
+  {
+    "name": "Evening Express",
+    "departure_time": "18:45",
+    "arrival_time": "00:15",
+    "economy_fare": "Rs. 1,200",
+    "business_fare": "Rs. 2,000",
+    "ac_fare": "Rs. 3,400",
+    "stops": "3 stops",
+    "duration": "5h 30m",
+    "id": "train_1",
+    "route": "Quetta → Karachi",
+    "travel_date": "2025-09-20",
+    "available_seats": 43,
+    "train_type": "Express",
+    "status": "Available"
+  },
+  {
+    "name": "Night Coach Express",
+    "departure_time": "22:30",
+    "arrival_time": "04:00",
+    "economy_fare": "Rs. 1,080",
+    "business_fare": "Rs. 1,750",
+    "ac_fare": "Rs. 2,900",
+    "stops": "6 stops",
+    "duration": "5h 30m",
+    "id": "train_2",
+    "route": "Quetta → Karachi",
+    "travel_date": "2025-09-20",
+    "available_seats": 25,
+    "train_type": "Express",
+    "status": "Available"
+  },
+  {
+    "name": "Late Night Special",
+    "departure_time": "23:45",
+    "arrival_time": "05:15",
+    "economy_fare": "Rs. 1,000",
+    "business_fare": "Rs. 1,650",
+    "ac_fare": "Rs. 2,800",
+    "stops": "4 stops",
+    "duration": "5h 30m",
+    "id": "train_3",
+    "route": "Quetta → Karachi",
+    "travel_date": "2025-09-20",
+    "available_seats": 26,
+    "train_type": "Passenger",
+    "status": "Available"
+  }
+]
