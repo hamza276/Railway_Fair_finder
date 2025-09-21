@@ -1,14 +1,3 @@
-﻿---
-title: Fullstack FastAPI + Vite on Spaces
-emoji: 🚀
-colorFrom: indigo
-colorTo: blue
-sdk: docker
-app_port: 7860
-pinned: false
-license: mit
----
-
 # Fullstack FastAPI + Vite on Hugging Face Spaces (Docker)
 
 This Space runs a single Docker container that serves a Vite React frontend and a FastAPI backend (mounted at **/api**).
