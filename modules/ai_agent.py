@@ -1,7 +1,6 @@
 # modules/ai_agent.py
-# Sequential, LLM-assisted (single-call) agent with graceful offline fallback
-# Roman Urdu formal tone, normal free‑form conversation supported.
-# Per turn at most 1 LLM call; if 429 or API fail, degrade_mode -> pure local parsing.
+# Sequential, LLM-assisted agent with graceful offline fallback
+# Roman Urdu formal tone, normal free-form conversation supported.
 
 import json
 import re
@@ -12,7 +11,7 @@ from config.settings import Config
 from modules.utils import Logger
 from modules.scraper import PakRailScraper
 
-# Optional LLM (OpenRouter via OpenAI-compatible endpoint)
+# Optional LLM (OpenRouter via OpenAI-compatible endpoint using LangChain)
 try:
     from langchain_openai import ChatOpenAI
 except Exception:
@@ -22,7 +21,7 @@ except Exception:
 class TrainBookingAI:
     """
     Sequential FSM:
-        init -> from_city -> to_city -> date -> budget -> time -> confirm -> results_shown
+      init -> from_city -> to_city -> date -> budget -> time -> confirm -> results_shown
 
     Features:
     - User free-form baat kare, agent locally parse karta hai
@@ -50,8 +49,8 @@ class TrainBookingAI:
         # LLM setup (optional)
         self.degrade_mode = False
         self.llm_calls = 0
-        self.llm: Optional[ChatOpenAI] = None
-        if ChatOpenAI and self.config.OPENROUTER_API_KEY:
+        self.llm: Optional[Any] = None
+        if ChatOpenAI and getattr(self.config, "OPENROUTER_API_KEY", None):
             try:
                 self.llm = ChatOpenAI(
                     model=self.config.AI_MODEL,
@@ -82,7 +81,7 @@ class TrainBookingAI:
             if any(w in lw for w in ["help", "madad", "kaise"]):
                 return "Rehnumai: Bas seedhe alfaaz mein batayein. 'reset' se naya start. Ab current sawal ka jawab dein."
 
-            # NEW: Soft reset if user is starting a new route but old cities exist
+            # Soft reset if user starts brand-new route
             self._soft_reset_if_new_route(txt)
 
             # Try to ingest whatever user said (free-form)
@@ -92,7 +91,7 @@ class TrainBookingAI:
             st = self.state["stage"]
 
             if st == "init":
-                # UPDATED: respect parsed info even on first turn
+                # Respect parsed info even on first turn
                 if self.state["from_station"] and self.state["to_station"]:
                     self.state["stage"] = "date"
                     return self._ask_date()
@@ -107,12 +106,9 @@ class TrainBookingAI:
                 return self._greet_intro()
 
             if st == "from_city":
-                # If FROM not yet known, nudge user
                 if not self.state["from_station"]:
                     return self._nudge_from_city()
 
-                # If destination already known (e.g., user said "Karachi jana hai" earlier),
-                # then jump directly to DATE instead of re-asking destination.
                 if self.state.get("to_station"):
                     if str(self.state["to_station"]).lower() == str(self.state["from_station"]).lower():
                         self.state["to_station"] = None
@@ -120,12 +116,10 @@ class TrainBookingAI:
                     self.state["stage"] = "date"
                     return self._ask_date()
 
-                # Else ask destination
                 self.state["stage"] = "to_city"
                 return self._ask_to()
 
             if st == "to_city":
-                # same-city check
                 if self.state["to_station"] and self.state["from_station"]:
                     if str(self.state["to_station"]).lower() == str(self.state["from_station"]).lower():
                         return self._same_city_warning(self.state["from_station"])
@@ -156,7 +150,7 @@ class TrainBookingAI:
                 return self._confirm_message()
 
             if st == "confirm":
-                if re.search(r"\b(haan|han|yes|ok|okay|ji|search|proceed|kar)\b", lw):
+                if re.search(r"\b(haan|han|yes|ok|okay|ji|jee|search|proceed|start|kar)\b", lw):
                     return self._search_and_format()
                 if re.search(r"\b(nahi|no|nahin|na)\b", lw):
                     # restart from beginning
@@ -249,7 +243,7 @@ class TrainBookingAI:
             self.state["to_station"] = to
             new_set = True
 
-        # Individual
+        # Individual fields
         if not self.state["from_station"]:
             c = self._local_extract_from_city(user_input)
             if c:
@@ -311,11 +305,13 @@ class TrainBookingAI:
         today = datetime.now().strftime("%Y-%m-%d")
         sys = f"""
 Aap Pakistani railway booking assistant hain. User ke free-form message se maloomat nikaalein.
+
 Normalization:
 - travel_date: YYYY-MM-DD (aaj={today}, kal=+1, parso=+2; past avoid)
 - preferred_time: "subah"|"dopahar"|"raat" (sham/shaam/evening/night -> raat)
 - budget: "Economy Class"|"Business Class"|"AC Class"|"Rs. <amount>"
 - format_pref: "list"|"table"|"json" (optional)
+
 Output ONLY JSON:
 {{
   "from_station": null|"City",
@@ -326,9 +322,12 @@ Output ONLY JSON:
   "format_pref": null|"list|table|json"
 }}
 """
-        msgs = [{"role": "system", "content": sys}, {"role": "user", "content": user_input}]
-        resp = self.llm.invoke(msgs)
-        data = self._safe_json_parse(resp.content)
+        prompt = f"{sys}\nUser message:\n{user_input}\n\nOutput ONLY the JSON object."
+
+        resp = self.llm.invoke(prompt)
+        # LangChain returns an AIMessage with .content
+        content = getattr(resp, "content", None) or str(resp)
+        data = self._safe_json_parse(content)
         if not data:
             raise RuntimeError("LLM non-JSON extraction")
         return data
@@ -414,7 +413,9 @@ Output ONLY JSON:
             d_fmt = d
         return (
             f"Summary:\n• Route: {self.state['from_station']} → {self.state['to_station']}\n"
-            f"• Date: {d_fmt}\n• Time: {self.state['preferred_time']}\n• Budget: {self.state['budget']}\n\n"
+            f"• Date: {d_fmt}\n"
+            f"• Time: {self.state['preferred_time']}\n"
+            f"• Budget: {self.state['budget']}\n\n"
             "Kya main ab search shuru karun? (haan/nahi)"
         )
 
@@ -442,11 +443,12 @@ Output ONLY JSON:
     def _safe_json_parse(text: str) -> Optional[Dict[str, Any]]:
         if not text:
             return None
-        t = text.strip()
-        t = re.sub(r'^```json\s*', '', t, flags=re.I).strip()
-        t = re.sub(r'^```\s*', '', t).strip()
-        t = re.sub(r'\s*```$', '', t).strip()
-        m = re.search(r'\{.*\}', t, flags=re.S)
+        t = str(text).strip()
+        # strip potential leading 'json' and code fences
+        t = re.sub(r'^\s*json\s*', '', t, flags=re.I).strip()
+        t = re.sub(r'^\s*```(?:json)?\s*', '', t, flags=re.I)
+        t = re.sub(r'\s*```\s*$', '', t)
+        m = re.search(r'{.*}', t, flags=re.S)
         if not m:
             return None
         try:
@@ -502,50 +504,53 @@ Output ONLY JSON:
             return today.strftime("%Y-%m-%d")
         if "kal" in t or "tomorrow" in t:
             return (today + timedelta(days=1)).strftime("%Y-%m-%d")
-        if "parso" in t:
+        if "parso" in t or "day after" in t:
             return (today + timedelta(days=2)).strftime("%Y-%m-%d")
+
         # dd/mm/yyyy or dd-mm-yyyy
-        m = re.search(r"\b(\d{1,2})[/-](\d{1,2})[/-](\d{4})\b", t)
+        m = re.search(r'\b(\d{1,2})[/-](\d{1,2})[/-](\d{4})\b', t)
         if m:
             d, mo, y = int(m.group(1)), int(m.group(2)), int(m.group(3))
             try:
                 dt = datetime(y, mo, d)
                 if dt.date() >= today.date():
                     return dt.strftime("%Y-%m-%d")
-            except:
+            except Exception:
                 pass
-        # yyyy-mm-dd
-        m = re.search(r"\b(\d{4})-(\d{2})-(\d{2})\b", t)
+
+        # yyyy-mm-dd or yyyy/mm/dd
+        m = re.search(r'\b(\d{4})[/-](\d{2})[/-](\d{2})\b', t)
         if m:
             y, mo, d = int(m.group(1)), int(m.group(2)), int(m.group(3))
             try:
                 dt = datetime(y, mo, d)
                 if dt.date() >= today.date():
                     return dt.strftime("%Y-%m-%d")
-            except:
+            except Exception:
                 pass
         return None
 
     def _local_extract_time(self, text: str):
         t = self._norm(text)
-        if any(k in t for k in ["subah", "morning", "fajr", "jaldi", "savere"]):
+        if any(k in t for k in ["subah", "morning", "fajr", "jaldi", "savere", "savera", "sawere"]):
             return "subah"
-        if any(k in t for k in ["dopahar", "afternoon", "zuhr", "noon", "din", "day"]):
+        if any(k in t for k in ["dopahar", "afternoon", "zuhr", "noon", "din", "day", "dopehar", "duphar", "dopehr"]):
             return "dopahar"
-        if any(k in t for k in ["raat", "night", "late", "sham", "shaam", "evening", "maghrib"]):
+        if any(k in t for k in ["raat", "night", "late", "sham", "shaam", "evening", "maghrib", "shaam"]):
             return "raat"
         return None
 
     def _local_extract_budget(self, text: str):
         t = self._norm(text)
-        m = re.findall(r"\b(\d{3,6})\b", t)
+        # numeric amount
+        m = re.findall(r'\b(\d{3,6})\b', t)
         if m:
             return f"Rs. {max(m)}"
-        if any(k in t for k in ["economy", "sasta", "cheap", "budget"]):
+        if re.search(r'\b(economy|sasta|cheap|budget)\b', t):
             return "Economy Class"
-        if any(k in t for k in ["business", "biz"]):
+        if re.search(r'\b(business|biz)\b', t):
             return "Business Class"
-        if any(k in t for k in ["ac", "a/c", "aircondition", "air-conditioned", "luxury", "expensive"]):
+        if re.search(r'\b(ac|a/c)\b', t) or "aircondition" in t or "air-conditioned" in t or "luxury" in t or "expensive" in t:
             return "AC Class"
         return None
 
@@ -582,8 +587,10 @@ Output ONLY JSON:
         def pad(s, n):
             s = str(s or "")
             return s[:n].ljust(n)
+
         lines = []
-        lines.append(f"{self.state.get('from_station')} → {self.state.get('to_station')} | {date_fmt} | {self.state.get('preferred_time')} | {self.state.get('budget')}")
+        header = f"{self.state.get('from_station')} → {self.state.get('to_station')} | {date_fmt} | {self.state.get('preferred_time')} | {self.state.get('budget')}"
+        lines.append(header)
         lines.append("-" * 110)
         lines.append(f"{pad('No',3)} {pad('Train',22)} {pad('Depart',8)} {pad('Arrive',8)} {pad('Economy',12)} {pad('Business',12)} {pad('AC',10)} {pad('Stops',8)}")
         lines.append("-" * 110)

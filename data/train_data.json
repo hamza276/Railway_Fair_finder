@@ -10,8 +10,8 @@
     "duration": "5h 30m",
     "id": "train_1",
     "route": "Quetta → Karachi",
-    "travel_date": "2025-09-20",
-    "available_seats": 43,
+    "travel_date": "2025-09-21",
+    "available_seats": 24,
     "train_type": "Express",
     "status": "Available"
   },
@@ -26,8 +26,8 @@
     "duration": "5h 30m",
     "id": "train_2",
     "route": "Quetta → Karachi",
-    "travel_date": "2025-09-20",
-    "available_seats": 25,
+    "travel_date": "2025-09-21",
+    "available_seats": 15,
     "train_type": "Express",
     "status": "Available"
   },
@@ -42,8 +42,8 @@
     "duration": "5h 30m",
     "id": "train_3",
     "route": "Quetta → Karachi",
-    "travel_date": "2025-09-20",
-    "available_seats": 26,
+    "travel_date": "2025-09-21",
+    "available_seats": 31,
     "train_type": "Passenger",
     "status": "Available"
   }
