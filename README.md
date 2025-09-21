@@ -1,40 +1,20 @@
-# Fullstack FastAPI + Vite on Hugging Face Spaces (Docker)
-
-This Space runs a single Docker container that serves a Vite React frontend and a FastAPI backend (mounted at **/api**).
-
-## Local (Docker)
-
-```bash
-docker build -t fullstack .
-docker run -p 7860:7860 fullstack
-# Visit http://localhost:7860
-```
-
-## Deploy to Hugging Face Spaces
-- Ensure the YAML front-matter above includes `sdk: docker` and `app_port: 7860`.
-- Push this repo to your Space; the platform will build the Dockerfile and run the app on port 7860.
----
-title: PakRail AI — Pakistan Railway Booking Assistant
-emoji: 🚆
-colorFrom: indigo
-colorTo: blue
-sdk: docker
-app_port: 7860
-pinned: false
-license: mit
----
-
 # PakRail AI — Pakistan Railway Booking Assistant
 
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.115-009485?logo=fastapi)](https://fastapi.tiangolo.com/)
 [![React](https://img.shields.io/badge/React-18-61dafb?logo=react&logoColor=white)](https://react.dev/)
 [![Vite](https://img.shields.io/badge/Vite-5-646cff?logo=vite&logoColor=white)](https://vitejs.dev/)
 [![Docker](https://img.shields.io/badge/Docker-ready-2496ed?logo=docker&logoColor=white)](https://www.docker.com/)
+[![Spaces](https://img.shields.io/badge/Live%20Demo-Hugging%20Face-yellow?logo=huggingface)](https://huggingface.co/spaces/Hamza1997/Railway_Real_Time_Fairfinder)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 
 PakRail AI is a chat-based assistant to help find Pakistan Railway trains, fares, and timing windows. Users can talk in Roman Urdu or English. The assistant works fully offline via local parsing and can optionally leverage an LLM through OpenRouter for better extraction.
 
 Frontend (Vite React) is served together with a FastAPI backend. A single Docker image serves the SPA at `/` and the API under `/api`.
+
+---
+
+## Live Demo
+- Deployed on Hugging Face Spaces: https://huggingface.co/spaces/Hamza1997/Railway_Real_Time_Fairfinder
 
 ---
 
@@ -62,7 +42,7 @@ Frontend (Vite React) is served together with a FastAPI backend. A single Docker
 
 ## Features
 - Conversational booking helper; polite Roman-Urdu tone supported.
-- Guided state machine: from → to → date → budget → time → confirm.
+- Guided state machine: from -> to -> date -> budget -> time -> confirm.
 - Offline-first parsing; optional LLM via OpenRouter (LangChain OpenAI-compatible).
 - Scraper scaffolding with Selenium/requests and realistic sample data.
 - Web UI (chat), REST API, and CLI experience.
@@ -70,15 +50,15 @@ Frontend (Vite React) is served together with a FastAPI backend. A single Docker
 
 ## Architecture
 - Frontend (Vite React) calls FastAPI endpoints under `/api`.
-- API keeps an in-memory session map (`sessionId` → agent instance).
+- API keeps an in-memory session map (`sessionId` -> agent instance).
 - Agent (FSM) extracts structured fields locally; tries LLM up to 2 times if allowed; falls back automatically on errors.
 - When information is complete, scraper returns realistic train options that are formatted as list/table/json.
 
 High-level flow:
 
 ```
-UI → POST /api/chat → TrainBookingAI (local parse + optional LLM)
-   → PakRailScraper → formatted reply
+UI -> POST /api/chat -> TrainBookingAI (local parse + optional LLM)
+   -> PakRailScraper -> formatted reply
 ```
 
 ## Tech Stack
@@ -167,7 +147,7 @@ Notes
 Base URL: dev `http://127.0.0.1:8000`, docker `http://localhost:7860`
 
 - `GET /api/health`
-  - `200 OK` → `{ "status": "ok" }`
+  - `200 OK` -> `{ "status": "ok" }`
 
 - `POST /api/chat`
   - Request JSON: `{ "message": "string", "sessionId": "optional-uuid" }`
@@ -229,3 +209,4 @@ MIT — see front matter. Add a `LICENSE` file if you plan to distribute.
 - Selenium, BeautifulSoup, Requests
 - LangChain, OpenRouter (optional)
 - Rich, Colorama
+
